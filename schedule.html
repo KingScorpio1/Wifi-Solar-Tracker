@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Event Scheduler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background-color: #f8f9fa; }
+        .container { max-width: 900px; margin: auto; }
+        .panel { background: #ffffff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #343a40; }
+        .button { padding: 10px 15px; margin: 5px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; color: white; }
+        .btn-hub { background-color: #6c757d; }
+        .btn-save { background-color: #007bff; }
+        .btn-add { background-color: #28a745; }
+        .btn-delete { background-color: #dc3545; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px; border: 1px solid #dee2e6; text-align: center; }
+        th { background-color: #e9ecef; }
+        select, input { padding: 5px; width: 90%; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a class="button btn-hub" href="/">Back to Hub</a>
+    <h1>Event Scheduler</h1>
+
+    <div class="panel">
+        <table id="scheduleTable">
+            <thead>
+                <tr>
+                    <th>Enabled</th><th>Day</th><th>Time (24h)</th><th>Action</th><th>Value</th><th>Delete</th>
+                </tr>
+            </thead>
+            <tbody id="scheduleBody"></tbody>
+        </table>
+        <button class="button btn-add" onclick="addEntry()">Add New Event</button>
+        <button class="button btn-save" onclick="saveSchedule()">Save All Changes</button>
+        <div id="status" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script>
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const actions = { 0: "None", 1: "Move To Angle" };
+
+    function createRow(entry) {
+        const row = document.createElement('tr');
+        
+        // Enabled Checkbox
+        row.innerHTML += `<td><input type="checkbox" class="enabled" ${entry.enabled ? 'checked' : ''}></td>`;
+
+        // Day Dropdown
+        let dayOptions = days.map((day, i) => `<option value="${i}" ${entry.dayOfWeek == i ? 'selected' : ''}>${day}</option>`).join('');
+        row.innerHTML += `<td><select class="day">${dayOptions}</select></td>`;
+        
+        // Time Inputs
+        row.innerHTML += `<td>
+            <input type="number" class="hour" value="${entry.hour}" min="0" max="23" style="width:40px;"> : 
+            <input type="number" class="minute" value="${entry.minute}" min="0" max="59" style="width:40px;">
+        </td>`;
+
+        // Action Dropdown
+        let actionOptions = Object.keys(actions).map(key => `<option value="${key}" ${entry.action == key ? 'selected' : ''}>${actions[key]}</option>`).join('');
+        row.innerHTML += `<td><select class="action">${actionOptions}</select></td>`;
+
+        // Value Input
+        row.innerHTML += `<td><input type="number" class="value" value="${entry.value}"></td>`;
+        
+        // Delete Button
+        row.innerHTML += `<td><button class="button btn-delete" onclick="this.parentElement.parentElement.remove()">X</button></td>`;
+        
+        return row;
+    }
+
+    function renderSchedule(scheduleData) {
+        const tbody = document.getElementById('scheduleBody');
+        tbody.innerHTML = '';
+        scheduleData.forEach(entry => {
+            if (entry.action > 0) { // Only show configured entries
+                tbody.appendChild(createRow(entry));
+            }
+        });
+    }
+
+    function addEntry() {
+        const newEntry = { dayOfWeek: 0, hour: 12, minute: 0, action: 1, value: 90, enabled: true };
+        document.getElementById('scheduleBody').appendChild(createRow(newEntry));
+    }
+
+    function saveSchedule() {
+        const status = document.getElementById('status');
+        status.textContent = 'Saving...';
+        const rows = document.querySelectorAll('#scheduleBody tr');
+        let newScheduleData = [];
+
+        rows.forEach(row => {
+            const entry = {
+                enabled: row.querySelector('.enabled').checked,
+                dayOfWeek: parseInt(row.querySelector('.day').value),
+                hour: parseInt(row.querySelector('.hour').value),
+                minute: parseInt(row.querySelector('.minute').value),
+                action: parseInt(row.querySelector('.action').value),
+                value: parseInt(row.querySelector('.value').value)
+            };
+            newScheduleData.push(entry);
+        });
+        
+        // Fill the rest with empty entries
+        while (newScheduleData.length < 10) {
+            newScheduleData.push({ action: 0, enabled: false });
+        }
+
+        fetch('/api/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newScheduleData)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                status.textContent = 'Schedule saved successfully!';
+            } else {
+                status.textContent = 'Error saving schedule.';
+            }
+        });
+    }
+
+    window.onload = function() {
+        const status = document.getElementById('status');
+        status.textContent = 'Loading schedule...';
+        fetch('/api/schedule')
+            .then(res => res.json())
+            .then(data => {
+                renderSchedule(data);
+                status.textContent = 'Schedule loaded.';
+            });
+    };
+</script>
+</body>
+</html>

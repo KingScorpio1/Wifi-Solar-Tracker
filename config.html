@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Solar Tracker Configuration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .form-group { margin-bottom: 15px; }
+    label { display: inline-block; width: 200px; }
+    input { padding: 5px; width: 100px; }
+    button { padding: 10px 15px; margin-top: 10px; }
+    .status { margin-top: 20px; padding: 10px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>System Configuration</h1>
+  <a href="/"><button>Back to Control</button></a>
+  
+  <div id="configForm">
+    <div class="form-group">
+      <label for="latitude">Latitude:</label>
+      <input type="number" id="latitude" step="0.000001">
+    </div>
+    <div class="form-group">
+      <label for="stepsPerDegree">Steps per Degree:</label>
+      <input type="number" id="stepsPerDegree">
+    </div>
+    <div class="form-group">
+      <label for="maxDegrees">Max Degrees:</label>
+      <input type="number" id="maxDegrees">
+    </div>
+    <div class="form-group">
+      <label for="dayStartHour">Day Start Hour:</label>
+      <input type="number" id="dayStartHour" min="0" max="23">
+    </div>
+    <div class="form-group">
+      <label for="dayEndHour">Day End Hour:</label>
+      <input type="number" id="dayEndHour" min="0" max="23">
+    </div>
+    <div class="form-group">
+      <label for="wifiSSID">WiFi SSID:</label>
+      <input type="text" id="wifiSSID">
+    </div>
+    <div class="form-group">
+      <label for="wifiPassword">WiFi Password:</label>
+      <input type="password" id="wifiPassword">
+    </div>
+    
+    <button onclick="saveConfig()">Save Configuration</button>
+    <button onclick="loadConfig()">Reload Configuration</button>
+    <div id="statusMessage" class="status"></div>
+  </div>
+</div>
+
+<script>
+let socket = new WebSocket('ws://' + location.hostname + ':/serial');
+
+// Load current configuration when page loads
+window.onload = function() {
+  loadConfig();
+};
+
+function loadConfig() {
+  fetch('/api/config')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('latitude').value = data.latitude || 0;
+      document.getElementById('stepsPerDegree').value = data.stepsPerDegree || 40;
+      document.getElementById('maxDegrees').value = data.maxDegrees || 120;
+      document.getElementById('dayStartHour').value = data.dayStartHour || 6;
+      document.getElementById('dayEndHour').value = data.dayEndHour || 18;
+      document.getElementById('statusMessage').textContent = 'Configuration loaded';
+    });
+}
+
+function saveConfig() {
+  const config = {
+    command: 'setConfig',
+    latitude: parseFloat(document.getElementById('latitude').value),
+    stepsPerDegree: parseInt(document.getElementById('stepsPerDegree').value),
+    maxDegrees: parseInt(document.getElementById('maxDegrees').value),
+    dayStartHour: parseInt(document.getElementById('dayStartHour').value),
+    dayEndHour: parseInt(document.getElementById('dayEndHour').value)
+  };
+  
+  socket.send(JSON.stringify(config));
+  document.getElementById('statusMessage').textContent = 'Configuration saved to memory. Click "Save Configuration" again to write to EEPROM.';
+}
+
+socket.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+  // Update form fields if config changes
+  document.getElementById('latitude').value = data.latitude;
+  document.getElementById('stepsPerDegree').value = data.stepsPerDegree;
+  document.getElementById('maxDegrees').value = data.maxDegrees;
+  document.getElementById('dayStartHour').value = data.dayStartHour;
+  document.getElementById('dayEndHour').value = data.dayEndHour;
+};
+</script>
+</body>
+</html>

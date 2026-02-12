@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Update HTML Files</title>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    form { margin: 20px 0; }
+    textarea { width: 100%; height: 300px; }
+  </style>
+</head>
+<body>
+  <h1>Update HTML Files</h1>
+  <a class="button" href="/">Back to Hub</a>  
+  <form action="/update_html" method="post" enctype="multipart/form-data">
+    <div>
+      <label for="name">Filename:</label>
+      <select id="name" name="name">
+        <option value="control.html">Control Page</option>
+        <option value="config.html">Config Page</option>
+        <option value="serial_monitor.html">Serial Monitor Page</option>
+        <option value="file_manager.html">File Manager Page</option>
+        <option value="update.html">This Page</option>
+      </select>
+    </div>
+    <div>
+      <label for="html_file">File Content:</label><br>
+      <textarea id="html_file" name="html_file"></textarea>
+    </div>
+    
+    <button type="submit">Update File</button>
+  </form>
+  
+  <h2>Current Files</h2>
+  <div id="fileList"></div>
+  
+  <script>
+    // Load current file content when selected
+    document.getElementById('name').addEventListener('change', function() {
+      fetch('/' + this.value)
+        .then(response => response.text())
+        .then(text => {
+          document.getElementById('html_file').value = text;
+        });
+    });
+    
+    // Load initial file list
+    fetch('/list_files')
+      .then(response => response.json())
+      .then(files => {
+        const list = document.getElementById('fileList');
+        files.forEach(file => {
+          const p = document.createElement('p');
+          p.innerHTML = `<strong>${file.name}</strong> (${file.size} bytes)`;
+          list.appendChild(p);
+        });
+      });
+  </script>
+</body>
+</html>

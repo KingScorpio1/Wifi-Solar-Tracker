@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>System Health</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background-color: #f8f9fa; }
+        .container { max-width: 800px; margin: auto; }
+        .panel { background: #ffffff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        h1, h2 { text-align: center; color: #343a40; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .health-card { padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; }
+        .health-label { font-weight: bold; color: #495057; display: block; margin-bottom: 5px; }
+        .health-value { font-size: 1.2em; color: #007bff; }
+        .button { display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a class="button" href="/">Back to Hub</a>
+    <h1>System Health Dashboard</h1>
+
+    <div class="panel">
+        <div class="grid-container">
+            <div class="health-card">
+                <span class="health-label">System Uptime</span>
+                <span class="health-value" id="uptime">-</span>
+            </div>
+            <div class="health-card">
+                <span class="health-label">Free Heap Memory</span>
+                <span class="health-value" id="free_heap">-</span>
+            </div>
+            <div class="health-card">
+                <span class="health-label">WiFi Signal (RSSI)</span>
+                <span class="health-value" id="wifi_rssi">-</span>
+            </div>
+            <div class="health-card">
+                <span class="health-label">NTP Time Sync</span>
+                <span class="health-value" id="ntp_status">-</span>
+            </div>
+            <div class="health-card">
+                <span class="health-label">Filesystem Usage</span>
+                <span class="health-value" id="spiffs_usage">-</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    function getRssiQuality(rssi) {
+        if (rssi >= -50) return `Excellent (${rssi} dBm)`;
+        if (rssi >= -70) return `Good (${rssi} dBm)`;
+        if (rssi >= -80) return `Fair (${rssi} dBm)`;
+        return `Weak (${rssi} dBm)`;
+    }
+
+    function updateHealth() {
+        fetch('/api/health')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('uptime').textContent = data.uptime;
+                document.getElementById('free_heap').textContent = formatBytes(data.free_heap);
+                document.getElementById('wifi_rssi').textContent = getRssiQuality(data.wifi_rssi);
+                document.getElementById('ntp_status').textContent = data.ntp_status;
+                const spiffsUsage = `${formatBytes(data.spiffs_used, 1)} / ${formatBytes(data.spiffs_total, 1)}`;
+                document.getElementById('spiffs_usage').textContent = spiffsUsage;
+            })
+            .catch(error => console.error("Failed to fetch health data:", error));
+    }
+
+    // Update on page load, and then every 3 seconds
+    window.onload = function() {
+        updateHealth();
+        setInterval(updateHealth, 3000);
+    };
+</script>
+</body>
+</html>

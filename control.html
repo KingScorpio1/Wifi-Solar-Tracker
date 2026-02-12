@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Solar Tracker Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      text-align: center; 
+      margin-top: 30px; 
+      background-color: #f8f9fa;
+      color: #343a40;
+    }
+    .container { 
+      max-width: 400px; 
+      margin: 0 auto; 
+    }
+    .angle-display { 
+      font-size: 2.5rem; 
+      font-weight: 300; 
+      margin: 20px 0;
+    }
+    .gauge-svg { 
+      width: 100%; 
+      max-width: 350px; 
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 24px;
+      margin: 10px;
+      background-color: #28a745;
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      min-width: 150px;
+    }
+    .button:hover { 
+      background-color: #218838; 
+    }
+    .button-hub {
+      background-color: #6c757d;
+    }
+    .button-hub:hover {
+      background-color: #5a6268;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <a class="button button-hub" href="/">Back to Hub</a>
+
+  <div class="angle-display">
+    Current Angle: <span id="currentAngleText">0</span>°
+  </div>
+
+  <svg id="gauge" class="gauge-svg" viewBox="0 0 200 120">
+    <!-- Background arc -->
+    <path id="gauge-bg" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#e9ecef" stroke-width="12" stroke-linecap="round"/>
+    <!-- Foreground (value) arc -->
+    <path id="gauge-value" d="M 20 100 A 80 80 0 0 1 20 100" fill="none" stroke="#28a745" stroke-width="12" stroke-linecap="round"/>
+    <!-- Handle -->
+    <rect id="gauge-handle" x="18" y="94" width="8" height="8" fill="#fd7e14" rx="1" ry="1"/>
+    <!-- Angle markers and text will be added by JavaScript -->
+    <g id="gauge-ticks" stroke="#adb5bd" stroke-width="1"></g>
+    <g id="gauge-labels" font-family="sans-serif" font-size="10" fill="#495057" text-anchor="middle"></g>
+  </svg>
+  
+  <div>
+    <button class="button" onclick="sendCommand('home')">Home Position (30°)</button>
+    <button class="button" onclick="sendCommand('stop')">Emergency Stop</button>
+  </div>
+</div>
+
+<script>
+  let socket;
+  let trackerConfig = { minAngle: 30, maxAngle: 150 }; // Default values
+
+  // --- Notification Logic ---
+  function requestNotificationPermission() {
+      if (!("Notification" in window)) {
+          console.log("This browser does not support desktop notification");
+      } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then(function (permission) {
+              if (permission === "granted") {
+                  console.log("Notification permission granted.");
+              }
+          });
+      }
+  }
+
+  function showNotification(title, message) {
+      if (Notification.permission === "granted") {
+          new Notification(title, { body: message, icon: '/favicon.ico' }); // Optional icon
+      }
+  }
+
+
+  // Helper function to convert polar coordinates (angle, radius) to Cartesian (x, y)
+  function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+    const angleInRadians = (angleInDegrees - 180) * Math.PI / 180.0;
+    return {
+      x: centerX + (radius * Math.cos(angleInRadians)),
+      y: centerY + (radius * Math.sin(angleInRadians))
+    };
+  }
+
+  // Helper function to describe an SVG arc path
+  function describeArc(x, y, radius, startAngle, endAngle) {
+    const start = polarToCartesian(x, y, radius, endAngle);
+    const end = polarToCartesian(x, y, radius, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+  }
+  
+  function updateGauge(angle) {
+    const { minAngle, maxAngle } = trackerConfig;
+    const value = Math.max(minAngle, Math.min(maxAngle, angle));
+    document.getElementById('currentAngleText').textContent = value;
+
+    // Map the tracker angle (e.g., 30-150) to the gauge's angle (0-180)
+    const gaugeAngle = ((value - minAngle) / (maxAngle - minAngle)) * 180;
+    
+    // Update the green value arc
+    document.getElementById('gauge-value').setAttribute('d', describeArc(100, 100, 80, 0, gaugeAngle));
+
+    // Update the orange handle position
+    const handlePos = polarToCartesian(100, 100, 80, gaugeAngle);
+    document.getElementById('gauge-handle').setAttribute('transform', `translate(${handlePos.x - 22}, ${handlePos.y - 98}) rotate(${gaugeAngle}, 4, 4)`);
+  }
+
+  function drawGaugeLabels() {
+      const { minAngle, maxAngle } = trackerConfig;
+      const ticksGroup = document.getElementById('gauge-ticks');
+      const labelsGroup = document.getElementById('gauge-labels');
+      ticksGroup.innerHTML = ''; // Clear old ticks
+      labelsGroup.innerHTML = ''; // Clear old labels
+
+      for (let angle = minAngle; angle <= maxAngle; angle += 15) {
+          const gaugeAngle = ((angle - minAngle) / (maxAngle - minAngle)) * 180;
+          const tickStart = polarToCartesian(100, 100, 88, gaugeAngle);
+          const tickEnd = polarToCartesian(100, 100, 72, gaugeAngle);
+          const labelPos = polarToCartesian(100, 100, 98, gaugeAngle);
+          
+          ticksGroup.innerHTML += `<line x1="${tickStart.x}" y1="${tickStart.y}" x2="${tickEnd.x}" y2="${tickEnd.y}" />`;
+          labelsGroup.innerHTML += `<text x="${labelPos.x}" y="${labelPos.y + 4}">${angle}°</text>`;
+      }
+  }
+
+  function connectWebSocket() {
+      socket = new WebSocket('ws://' + location.hostname + '/serial');
+
+      socket.onmessage = function(event) {
+          try {
+              const data = JSON.parse(event.data);
+              
+              // --- MODIFIED SECTION ---
+              // Check if the message is an event or a status update
+              if (data.type === 'event') {
+                  // It's a notification! Show it.
+                  showNotification('Solar Tracker Alert: ' + data.event, data.message);
+              } else if (data.hasOwnProperty('position')) {
+                  // It's a regular status update for the gauge
+                  updateGauge(data.position);
+              }
+              // --- END MODIFIED SECTION ---
+
+          } catch (e) { 
+              console.log("Log: ", event.data); 
+          }
+      };
+
+      socket.onclose = function(event) {
+          console.log("WebSocket disconnected. Reconnecting...");
+          setTimeout(connectWebSocket, 3000);
+      };
+  }
+
+  function sendCommand(cmd) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      console.error("WebSocket is not connected.");
+      return;
+    }
+    socket.send(JSON.stringify({ command: cmd }));
+  }
+
+  // --- Page Initialization ---
+  window.onload = function() {
+    // 1. Ask for notification permission immediately
+    requestNotificationPermission();
+
+    // 2. Fetch config to set up the gauge
+    fetch('/api/config')
+        .then(response => response.json())
+        .then(config => {
+            trackerConfig.maxAngle = config.maxDegrees; 
+            drawGaugeLabels();
+            connectWebSocket(); // 3. Connect WebSocket after gauge is ready
+        })
+        .catch(error => {
+            console.error("Failed to load config, using defaults.", error);
+            drawGaugeLabels();
+            connectWebSocket();
+        });
+  };
+</script>
+</body>
+</html>

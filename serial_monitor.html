@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Serial Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 10px; background-color: #f0f2f5;}
+    .container { max-width: 800px; margin: auto; }
+    h1 { color: #333; }
+    #output { 
+      height: 400px; 
+      overflow-y: scroll; 
+      border: 1px solid #ccc; 
+      padding: 10px;
+      background: #2b2b2b;
+      color: #a9b7c6;
+      font-family: monospace;
+      white-space: pre-wrap;
+      border-radius: 5px;
+    }
+    .button {
+      display: inline-block; padding: 10px 15px; margin: 10px 5px 10px 0; background-color: #007bff;
+      color: white; text-decoration: none; border-radius: 5px; border: none; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ESP32 Serial Monitor</h1>
+    <a class="button" href="/">Back to Hub</a>
+    <button class="button" onclick="document.getElementById('output').innerHTML = ''">Clear</button>
+
+    <div id="output"></div>
+
+    <script>
+      const output = document.getElementById('output');
+      let socket;
+
+      function connectWebSocket() {
+        socket = new WebSocket('ws://' + location.hostname + '/serial');
+
+        socket.onopen = function(event) {
+          output.innerHTML += '<span style="color: #8fbc8f;">[SYSTEM] WebSocket Connected</span>\n';
+        };
+        
+        socket.onmessage = function(event) {
+          output.innerHTML += event.data + '\n';
+          output.scrollTop = output.scrollHeight; // Auto-scroll
+        };
+
+        socket.onclose = function(event) {
+          output.innerHTML += '<span style="color: #e06c75;">[SYSTEM] WebSocket Disconnected. Retrying...</span>\n';
+          setTimeout(connectWebSocket, 3000);
+        };
+      }
+
+      window.onload = connectWebSocket;
+    </script>
+  </div>
+</body>
+</html>

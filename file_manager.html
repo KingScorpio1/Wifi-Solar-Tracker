@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>File Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 10px; background-color: #f0f2f5; }
+        .container { max-width: 800px; margin: auto; }
+        .panel { background: #ffffff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        .button { display: inline-block; padding: 10px 15px; margin: 10px 5px 10px 0; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; border: none; cursor: pointer; }
+        .button-delete { background-color: #dc3545; }
+        #fileTable { width: 100%; border-collapse: collapse; }
+        #fileTable th, #fileTable td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+        #fileTable th { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>File Manager</h1>
+    <a class="button" href="/">Back to Hub</a>
+
+    <div class="panel">
+        <h2>Upload File</h2>
+        <form id="uploadForm">
+            <input type="file" name="data" required>
+            <button class="button" type="submit">Upload</button>
+        </form>
+    </div>
+
+    <div class="panel">
+        <h2>Stored Files on SPIFFS</h2>
+        <table id="fileTable">
+            <thead><tr><th>Filename</th><th>Size (Bytes)</th><th>Action</th></tr></thead>
+            <tbody id="fileList"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function loadFiles() {
+    const fileList = document.getElementById('fileList');
+    fileList.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    
+    fetch('/api/files')
+        .then(response => response.json())
+        .then(files => {
+            fileList.innerHTML = ''; // Clear loading message
+            if (files.length === 0) {
+                fileList.innerHTML = '<tr><td colspan="3">No files found.</td></tr>';
+            } else {
+                files.forEach(file => {
+                    const row = `<tr>
+                        <td><a href="/${file.name}" target="_blank">${file.name}</a></td>
+                        <td>${file.size}</td>
+                        <td><button class="button button-delete" onclick="deleteFile('${file.name}')">Delete</button></td>
+                    </tr>`;
+                    fileList.innerHTML += row;
+                });
+            }
+        });
+}
+
+function deleteFile(filename) {
+    if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+
+    fetch('/api/delete?file=' + filename, { method: 'POST' })
+        .then(response => {
+            if (response.ok) {
+                alert(filename + ' deleted successfully.');
+                loadFiles(); // Refresh the list
+            } else {
+                alert('Error deleting file.');
+            }
+        });
+}
+
+document.getElementById('uploadForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            alert('File uploaded successfully!');
+            loadFiles(); // Refresh the list
+        } else {
+            alert('File upload failed.');
+        }
+    });
+});
+
+window.onload = loadFiles;
+</script>
+</body>
+</html>
