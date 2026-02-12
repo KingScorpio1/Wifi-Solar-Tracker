@@ -48,6 +48,9 @@
 </div>
 
 <script>
+    const ESP32_ADDRESS = "http://domust369-tracker.ddns.net"; // Use your DDNS name
+    const ESP32_WEBSOCKET = "ws://domust369-tracker.ddns.net/serial"; // Use your DDNS name
+
     function formatBytes(bytes, decimals = 2) {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;

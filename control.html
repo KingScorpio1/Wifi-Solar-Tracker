@@ -76,6 +76,9 @@
 </div>
 
 <script>
+  const ESP32_ADDRESS = "http://domust369-tracker.ddns.net"; // Use your DDNS name
+  const ESP32_WEBSOCKET = "ws://domust369-tracker.ddns.net/serial"; // Use your DDNS name
+
   let socket;
   let trackerConfig = { minAngle: 30, maxAngle: 150 }; // Default values
 
@@ -151,7 +154,7 @@
   }
 
   function connectWebSocket() {
-      socket = new WebSocket('ws://' + location.hostname + '/serial');
+      socket = new WebSocket(ESP32_WEBSOCKET);
 
       socket.onmessage = function(event) {
           try {
