@@ -74,7 +74,7 @@
     }
 
     function updateStatus() {
-        fetch(${esp32_address}/api/status)
+        fetch('${esp32_address}/api/status')
             .then(response => response.json())
             .then(data => {
                 document.getElementById('ipAddress').textContent = data.ip;
