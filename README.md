@@ -65,7 +65,7 @@ Any `git push` to the `main` branch of your repository will automatically trigge
 
 ## Screenshots
 
-*(This is a great place to add more screenshots of your different UI pages, like the history chart, health dashboard, etc.)*
+*(This is a great place where I add my screenshots of different UI pages, like the history chart, health dashboard, etc.)*
 
 *   **Control Panel**
     ![Control Panel](https://i.imgur.com/your-image-url.png)
